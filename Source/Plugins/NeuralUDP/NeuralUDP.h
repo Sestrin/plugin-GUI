@@ -58,14 +58,16 @@ public:
     */
     void process (AudioSampleBuffer& buffer, MidiBuffer& events) override;
 
-    int getNumHeadstageOutputs() const override {return 65;}
+    int getNumHeadstageOutputs() const override {return 65;} //this is hardcoded... fix later
     
 
-    float getSampleRate()  const override {return 30000.0;}
-    float getDefaultSampleRate()  const override {return 30000.0;}
+    float getSampleRate()  const override {return 30000.0;} //hardcoded
+    float getDefaultSampleRate()  const override {return 30000.0;} //hardcoded
     //float getBitVolts(Channel * chan)  const override {return 1.0;}
 
-    
+    bool isReady() override;
+    void setEnabledState(bool newState) override;
+    void updateSettings() override;
 
 private:
 
@@ -73,7 +75,7 @@ private:
     int sock;
 
     
-    CriticalSection objectLock;
+    CriticalSection lock;
 
     int64 timestamp;
 

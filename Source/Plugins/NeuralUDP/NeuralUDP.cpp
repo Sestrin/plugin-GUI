@@ -31,6 +31,7 @@
 #include <unistd.h>
 
 #include "NeuralUDP.h"
+#include "NeuralUDPEditor.h"
 
 const int PORT = 9000;
 const int PACKETS_PER_PROCESS = 60;
@@ -76,9 +77,26 @@ NeuralUDP::NeuralUDP()
 
 NeuralUDP::~NeuralUDP()
 {
+    printf("before break");
     close(sock);
+    printf("after break");
 }
 
+
+bool NeuralUDP::isReady()
+{
+    return true;
+}
+
+void NeuralUDP::setEnabledState(bool newState)
+{
+    isEnabled = newState;
+}
+
+void NeuralUDP::updateSettings()
+{
+
+}
 
 
 void NeuralUDP::process (AudioSampleBuffer& buffer, MidiBuffer& events)
@@ -92,7 +110,7 @@ void NeuralUDP::process (AudioSampleBuffer& buffer, MidiBuffer& events)
 
     printf("Neural UDP (NC: %d NS: %d) \n ", buffer.getNumChannels(), buffer.getNumSamples());
 
-    for(int packetNum = 0; packetNum < PACKETS_PER_PROCESS; packetNum++)
+        for(int packetNum = 0; packetNum < PACKETS_PER_PROCESS; packetNum++)
     {
         readLength = recvfrom(sock, packetBuffer, (size_t)PACKET_SIZE, 0, NULL, 0);
         if(readLength != PACKET_SIZE){
@@ -129,10 +147,10 @@ void NeuralUDP::process (AudioSampleBuffer& buffer, MidiBuffer& events)
             }
         }
     }
-
+    
     timestamp += PACKETS_PER_PROCESS*SAMPLES_PER_PACKET;
     setTimestamp(events, timestamp);
-    setNumSamples(events, SAMPLES_PER_PACKET*PACKETS_PER_PROCESS);
+    setNumSamples(events, SAMPLES_PER_PACKET*PACKETS_PER_PROCESS);    
 
 }
 
