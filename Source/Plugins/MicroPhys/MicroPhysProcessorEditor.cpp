@@ -23,7 +23,7 @@
 #include "MicroPhysProcessorEditor.h"
 #include "MicroPhysProcessor.h"
 
-static const int EDITOR_DESIRED_WIDTH = 150;
+static const int EDITOR_DESIRED_WIDTH = 180;
 
 
 MicroPhysProcessorEditor::MicroPhysProcessorEditor (GenericProcessor* parentNode, bool useDefaultParameterEditors = true)
@@ -98,6 +98,7 @@ void MicroPhysProcessorEditor::buttonEvent (Button* button)
     //        getProcessor()->setParameter(0, 0);
     //    }
     //}
+  printf("entered buttonEvent");
 }
 
 
@@ -107,4 +108,5 @@ void MicroPhysProcessorEditor::buttonEvent (Button* button)
 */
 void MicroPhysProcessorEditor::sliderEvent (Slider* slider)
 {
+  printf("entered sliderEvent");
 }

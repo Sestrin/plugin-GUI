@@ -23,20 +23,6 @@
 
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <netinet/in.h>
-#include <string.h>
-#include <stdint.h>
-#include <unistd.h>
-
-const int PORT = 9000;
-const int PACKETS_PER_PROCESS = 60;
-const int NUM_NEURAL_CHANNELS = 65;
-const int SAMPLES_PER_PACKET = 10;
-const char PACKET_HEADER[] = "OneNeural";
 
 #include "MicroPhysProcessor.h"
 #include "MicroPhysProcessorEditor.h"
@@ -53,49 +39,23 @@ MicroPhysProcessor::MicroPhysProcessor()
 
     // Open Ephys Plugin Generator will insert generated code for parameters here. Don't edit this section.
     //[OPENEPHYS_PARAMETERS_SECTION_BEGIN]
+    // Parameter 0 code
+    auto parameter0 = new Parameter ("Sample Rate", "Sample Rate", 1000, 10000, currentSampleRate, 0);
+    parameter0->setEditorDesiredBounds (0,0,0,0);
+    String parameter0description = "Set sampling rate (Hz)";
+    parameter0->setDescription (parameter0description);
+    parameters.add (parameter0);
+
+
     //[OPENEPHYS_PARAMETERS_SECTION_END]
 
     //Without a custom editor, generic parameter controls can be added
     //parameters.add(Parameter("thresh", 0.0, 500.0, 200.0, 0));
-    // setup port
-    struct sockaddr_in myaddr;
-
-    // Port should accept traffic from any address
-    memset((char *)&myaddr, 0, sizeof(myaddr));
-    myaddr.sin_family = AF_INET;
-    myaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    myaddr.sin_port = htons(PORT);
-
-    sock = socket(AF_INET, SOCK_DGRAM, 0);
-
-    struct timeval tv;
-    tv.tv_sec = 3;
-    tv.tv_usec = 0;
-    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0)
-    {
-        perror("Error");
-        return;
-    }
-
-    if(sock == -1){
-        perror("Neural UDP could not create a socket");
-        return;
-    }
-
-    if(bind(sock, (struct sockaddr *) &myaddr, sizeof(myaddr)) < 0) {
-        perror("Neural UDP Socket Bind Failure");
-        return;
-    }
-
-    timestamp = 0;
-    
 }
 
 
 MicroPhysProcessor::~MicroPhysProcessor()
 {
-    //close socket
-    close(sock);
 }
 
 
@@ -117,6 +77,12 @@ void MicroPhysProcessor::setParameter (int parameterIndex, float newValue)
     GenericProcessor::setParameter (parameterIndex, newValue);
     editor->updateParameterButtons (parameterIndex);
 
+    if(parameterIndex == 0)
+    {
+        currentSampleRate = newValue;
+    }
+    printf("blah");
+
     //Parameter& p =  parameters.getReference(parameterIndex);
     //p.setValue(newValue, 0);
 
@@ -127,64 +93,56 @@ void MicroPhysProcessor::setParameter (int parameterIndex, float newValue)
 
 
 void MicroPhysProcessor::process (AudioSampleBuffer& buffer, MidiBuffer& events)
-{   
-
-    
-
-    // packet process
-    static int PACKET_HEADER_LENGTH = strlen(PACKET_HEADER);
-    static int PACKET_SIZE = 2*NUM_NEURAL_CHANNELS*SAMPLES_PER_PACKET + PACKET_HEADER_LENGTH;
-    char packetBuffer[PACKET_SIZE];
-    static int readLength = 0, bufferIdx = 0;
-    static int16_t * sampleInt16Ptr = NULL;
-    static uint16_t * sampleUint16Ptr = NULL;
-
-    printf("Neural UDP (NC: %d NS: %d) \n ", buffer.getNumChannels(), buffer.getNumSamples());
-
-        for(int packetNum = 0; packetNum < PACKETS_PER_PROCESS; packetNum++)
+{
+    /**
+      Generic structure for processing buffer data
+    */
+    int nChannels = buffer.getNumChannels();
+    for (int chan = 0; chan < nChannels; ++chan)
     {
-        readLength = recvfrom(sock, packetBuffer, (size_t)PACKET_SIZE, 0, NULL, 0);
-        if(readLength != PACKET_SIZE){
-            printf("Readlength: %d\n",readLength);
-            printf("PacketSize: %d\n",PACKET_SIZE);
-            perror("Incorrect UDP packet size read");
-            return;
-        }
-        if(strncmp(PACKET_HEADER, packetBuffer, PACKET_HEADER_LENGTH) != 0){
-            perror("Incorrect UDP packet header");
-            return;   
-        }
+        int nSamples = getNumSamples (chan);
+        /* =============================================================================
+          Do something here.
 
-        printf("Processing a packet!\n");
+          To obtain a read-only pointer to the n sample of a channel:
+          float* samplePtr = buffer.getReadPointer(chan,n);
 
+          To obtain a read-write pointer to the n sample of a channel:
+          float* samplePtr = buffer.getWritePointer(chan,n);
 
+          All the samples in a channel are consecutive, so this example is valid:
+          float* samplePtr = buffer.getWritePointer(chan,0);
+          for (i=0; i < nSamples; i++)
+          {
+         *(samplePtr+i) = (*samplePtr+i)+offset;
+         }
 
-        for(int packetChannel = 0; packetChannel < NUM_NEURAL_CHANNELS; packetChannel++)
-        {
-            for(int packetSampleNum = 0; packetSampleNum < SAMPLES_PER_PACKET; packetSampleNum ++)
-            {
-                if(packetChannel == 0){
-                    sampleUint16Ptr = (uint16_t*) &packetBuffer[2*(packetChannel*SAMPLES_PER_PACKET+packetSampleNum) + PACKET_HEADER_LENGTH];
-                    buffer.setSample(packetChannel, packetNum*SAMPLES_PER_PACKET+packetSampleNum, (float) *sampleUint16Ptr);
-                    
-                    printf(" %f ", buffer.getSample(packetChannel, packetNum*SAMPLES_PER_PACKET+packetSampleNum));
+         See also documentation and examples for buffer.copyFrom and buffer.addFrom to operate on entire channels at once.
 
-                }
-                else{
-                    sampleInt16Ptr = (int16_t*) &packetBuffer[2*(packetChannel*SAMPLES_PER_PACKET+packetSampleNum) + PACKET_HEADER_LENGTH];
-                    buffer.setSample(packetChannel, packetNum*SAMPLES_PER_PACKET+packetSampleNum, (float) *sampleInt16Ptr);
-                }
-
-            }
-        }
+         To add a TTL event generated on the n-th sample:
+         addEvents(events, TTL, n);
+         =============================================================================== */
     }
-    
-    timestamp += PACKETS_PER_PROCESS*SAMPLES_PER_PACKET;
-    setTimestamp(events, timestamp);
-    setNumSamples(events, SAMPLES_PER_PACKET*PACKETS_PER_PROCESS); 
 
-    
-       
+    /** Simple example that creates an event when the first channel goes under a negative threshold
+
+      for (int i = 0; i < getNumSamples(channels[0]->sourceNodeId); i++)
+      {
+      if ((*buffer.getReadPointer(0, i) < -threshold) && !state)
+      {
+
+    // generate midi event
+    addEvent(events, TTL, i);
+
+    state = true;
+
+    } else if ((*buffer.getReadPointer(0, i) > -threshold + bufferZone)  && state)
+    {
+    state = false;
+    }
+
+    }
+    */
 }
 
 
@@ -247,4 +205,19 @@ void MicroPhysProcessor::loadCustomParametersFromXml()
         }
     }
     //[OPENEPHYS_PARAMETERS_LOAD_SECTION_END]
+}
+
+float MicroPhysProcessor::getSampleRate() const
+{
+    return currentSampleRate;
+}
+
+float MicroPhysProcessor::getDefaultSampleRate() const
+{
+    return currentSampleRate;
+}
+
+int MicroPhysProcessor::getNumHeadstageOutputs() const
+{
+    return currentChannelNum;
 }

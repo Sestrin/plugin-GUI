@@ -32,9 +32,21 @@ MicroPhysProcessorContentComponent::MicroPhysProcessorContentComponent ()
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
+    addAndMakeVisible (textEditor = new TextEditor ("new text editor"));
+    textEditor->setTooltip (TRANS("Enter number between 1000 - 10000"));
+    textEditor->setMultiLine (false);
+    textEditor->setReturnKeyStartsNewLine (false);
+    textEditor->setReadOnly (false);
+    textEditor->setScrollbarsShown (true);
+    textEditor->setCaretVisible (true);
+    textEditor->setPopupMenuEnabled (true);
+    textEditor->setText (TRANS("2000"));
+
 
     //[UserPreSize]
     //[/UserPreSize]
+
+    setSize (150, 200);
 
 
     //[Constructor] You can add your own custom stuff here..
@@ -46,6 +58,7 @@ MicroPhysProcessorContentComponent::~MicroPhysProcessorContentComponent()
     //[Destructor_pre]. You can add your own custom destruction code here..
     //[/Destructor_pre]
 
+    textEditor = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -58,6 +71,12 @@ void MicroPhysProcessorContentComponent::paint (Graphics& g)
     //[UserPrePaint] Add your own custom painting code here..
     //[/UserPrePaint]
 
+    g.setColour (Colours::black);
+    g.setFont (Font (Font::getDefaultMonospacedFontName(), 12.00f, Font::plain));
+    g.drawText (TRANS("Sample Rate (Hz)"),
+                4, 4, 116, 34,
+                Justification::centred, true);
+
     //[UserPaint] Add your own custom painting code here..
     //[/UserPaint]
 }
@@ -67,6 +86,7 @@ void MicroPhysProcessorContentComponent::resized()
     //[UserPreResize] Add your own custom resize code here..
     //[/UserPreResize]
 
+    textEditor->setBounds (9, 38, 104, 24);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }
@@ -86,11 +106,19 @@ void MicroPhysProcessorContentComponent::resized()
 
 BEGIN_JUCER_METADATA
 
-<JUCER_COMPONENT documentType="Component" className="MicroPhysProcessorContentComponent" componentName=""
-                 parentClasses="public Component" constructorParams="" variableInitialisers=""
-                 snapPixels="8" snapActive="1" snapShown="1" overlayOpacity="0.330"
-                 fixedSize="1" initialWidth="150" initialHeight="200">
-  <BACKGROUND backgroundColour="ffffff"/>
+<JUCER_COMPONENT documentType="Component" className="MicroPhysProcessorContentComponent"
+                 componentName="" parentClasses="public Component" constructorParams=""
+                 variableInitialisers="" snapPixels="8" snapActive="1" snapShown="1"
+                 overlayOpacity="0.330" fixedSize="0" initialWidth="150" initialHeight="200">
+  <BACKGROUND backgroundColour="ffffff">
+    <TEXT pos="4 4 116 34" fill="solid: ff000000" hasStroke="0" text="Sample Rate (Hz)"
+          fontname="Default monospaced font" fontsize="12" bold="0" italic="0"
+          justification="36"/>
+  </BACKGROUND>
+  <TEXTEDITOR name="new text editor" id="2074765275e4a960" memberName="textEditor"
+              virtualName="" explicitFocusOrder="0" pos="9 38 104 24" tooltip="Enter number between 1000 - 10000"
+              initialText="2000" multiline="0" retKeyStartsLine="0" readonly="0"
+              scrollbars="1" caret="1" popupmenu="1"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA

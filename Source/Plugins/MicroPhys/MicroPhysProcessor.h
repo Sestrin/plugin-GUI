@@ -69,6 +69,16 @@ public:
         and spikes) is contained in the "events" variable.
     */
     void process (AudioSampleBuffer& buffer, MidiBuffer& events) override;
+    int getNumHeadstageOutputs() const override; //{return 32;} //this is hardcoded... fix later
+    
+
+    float getSampleRate() const override;
+    float getDefaultSampleRate() const override;
+    //float getBitVolts(Channel * chan)  const override {return 1.0;}
+
+    //bool isReady() override;
+    //void setEnabledState(bool newState) override;
+    //void updateSettings() override;
 
     /** The method that standard controls on the editor will call.
         It is recommended that any variables used by the "process" function
@@ -98,9 +108,9 @@ private:
     //
     // float threshold;
     // bool state;
-    int sock;
-    int64 timestamp;
-    
+    float currentSampleRate = 2000;
+    int currentChannelNum = 32;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MicroPhysProcessor);
 };
 

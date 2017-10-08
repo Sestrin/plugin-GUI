@@ -17,8 +17,8 @@
   ==============================================================================
 */
 
-#ifndef MICROPHYSPROCESSORCONTENTCOMPONENT_H_INCLUDED
-#define MICROPHYSPROCESSORCONTENTCOMPONENT_H_INCLUDED
+#ifndef __JUCE_HEADER_3E5E3EF2DFA3D888__
+#define __JUCE_HEADER_3E5E3EF2DFA3D888__
 
 //[Headers]     -- You can add your own extra header files here --
 #include <EditorHeaders.h>
@@ -34,11 +34,11 @@
     Describe your class and how it works here!
                                                                     //[/Comments]
 */
-class MicroPhysProcessorContentComponent: public Component
+class MicroPhysProcessorContentComponent  : public Component
 {
 public:
     //==============================================================================
-    MicroPhysProcessorContentComponent();
+    MicroPhysProcessorContentComponent ();
     ~MicroPhysProcessorContentComponent();
 
     //==============================================================================
@@ -60,6 +60,7 @@ private:
     //[/UserVariables]
 
     //==============================================================================
+    ScopedPointer<TextEditor> textEditor;
 
 
     //==============================================================================
@@ -69,4 +70,4 @@ private:
 //[EndFile] You can add extra defines here...
 //[/EndFile]
 
-#endif   // MICROPHYSPROCESSORCONTENTCOMPONENT_H_INCLUDED
+#endif   // __JUCE_HEADER_3E5E3EF2DFA3D888__
