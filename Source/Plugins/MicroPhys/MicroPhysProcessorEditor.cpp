@@ -110,3 +110,11 @@ void MicroPhysProcessorEditor::sliderEvent (Slider* slider)
 {
   printf("entered sliderEvent");
 }
+
+
+void MicroPhysProcessorEditor::channelChanged (int channel, bool newState)
+{
+    auto processor = static_cast<MicroPhysProcessor*> (getProcessor());
+    processor->setDisplayChannelState (channel, newState);
+    
+}

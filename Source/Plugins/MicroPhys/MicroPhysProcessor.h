@@ -78,8 +78,7 @@ public:
 
     //bool isReady() override;
     //void setEnabledState(bool newState) override;
-    //void updateSettings() override;
-
+    
     /** The method that standard controls on the editor will call.
         It is recommended that any variables used by the "process" function
         are modified only through this method while data acquisition is active. */
@@ -100,6 +99,10 @@ public:
     */
     //void updateSettings();
 
+    Array<int> getDisplayChannels() const     { return displayChannels; }
+    void setDisplayChannels (const Array<int>& newDisplayChannels);
+    void setDisplayChannelState (int channel, bool newState);
+
 private:
 
     // private members and methods go here
@@ -108,8 +111,12 @@ private:
     //
     // float threshold;
     // bool state;
+
+    CriticalSection objectLock;
+    
     float currentSampleRate = 2000;
-    int currentChannelNum = 32;
+    int currentChannelNum = 32;    
+    Array<int> displayChannels;        
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MicroPhysProcessor);
 };

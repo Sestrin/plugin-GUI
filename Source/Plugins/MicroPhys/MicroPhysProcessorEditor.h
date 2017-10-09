@@ -74,6 +74,8 @@ public:
       */
     //void updateSettings();
 
+    void channelChanged (int channel, bool newState) override;
+
 
 private:
     // This component contains all components and graphics that were added using Projucer.

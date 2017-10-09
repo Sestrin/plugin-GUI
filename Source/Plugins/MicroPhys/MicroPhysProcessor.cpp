@@ -81,7 +81,7 @@ void MicroPhysProcessor::setParameter (int parameterIndex, float newValue)
     {
         currentSampleRate = newValue;
     }
-    printf("blah");
+    
 
     //Parameter& p =  parameters.getReference(parameterIndex);
     //p.setValue(newValue, 0);
@@ -220,4 +220,23 @@ float MicroPhysProcessor::getDefaultSampleRate() const
 int MicroPhysProcessor::getNumHeadstageOutputs() const
 {
     return currentChannelNum;
+}
+
+void MicroPhysProcessor::setDisplayChannels (const Array<int>& newDisplayChannels)
+{
+    const ScopedLock myScopedLock (objectLock);
+
+    displayChannels = Array<int> (newDisplayChannels);
+    printf("entered2!!!!!!\n");
+}
+
+void MicroPhysProcessor::setDisplayChannelState (int channel, bool newState)
+{
+    if (! newState)
+        displayChannels.removeFirstMatchingValue (channel);
+    else
+        displayChannels.addIfNotAlreadyThere (channel);
+
+    printf("entered!!!!!!\n");
+
 }
