@@ -1,3 +1,4 @@
+
 /*
    ------------------------------------------------------------------
 
@@ -97,8 +98,7 @@ void MicroPhysProcessorEditor::buttonEvent (Button* button)
     //    {
     //        getProcessor()->setParameter(0, 0);
     //    }
-    //}
-  printf("entered buttonEvent");
+    //}  
 }
 
 
@@ -108,7 +108,7 @@ void MicroPhysProcessorEditor::buttonEvent (Button* button)
 */
 void MicroPhysProcessorEditor::sliderEvent (Slider* slider)
 {
-  printf("entered sliderEvent");
+
 }
 
 

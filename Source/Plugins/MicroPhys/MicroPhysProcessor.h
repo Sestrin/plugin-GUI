@@ -30,6 +30,8 @@
 
 #include <ProcessorHeaders.h>
 
+const int CHANNUM = 32;
+
 /**
     This class serves as a template for creating new processors.
 
@@ -99,9 +101,11 @@ public:
     */
     //void updateSettings();
 
-    Array<int> getDisplayChannels() const     { return displayChannels; }
+    //*bool getDisplayChannels() const     { return displayChannels; }
     void setDisplayChannels (const Array<int>& newDisplayChannels);
     void setDisplayChannelState (int channel, bool newState);
+
+    void sendMetaData();
 
 private:
 
@@ -112,11 +116,15 @@ private:
     // float threshold;
     // bool state;
 
+    int sock; //UDP Receive
+    int sockSend; //UDP Send
+    int64 timestamp;
     CriticalSection objectLock;
     
     float currentSampleRate = 2000;
-    int currentChannelNum = 32;    
-    Array<int> displayChannels;        
+    int currentChannelNum = CHANNUM;    
+    bool displayChannels[CHANNUM];     
+
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MicroPhysProcessor);
 };

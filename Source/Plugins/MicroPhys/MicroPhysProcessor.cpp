@@ -23,12 +23,22 @@
 
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <stdint.h>
+#include <unistd.h>
 
 #include "MicroPhysProcessor.h"
 #include "MicroPhysProcessorEditor.h"
 
-//If the processor uses a custom editor, it needs its header to instantiate it
-//#include "ExampleEditor.h"
+#define SRV_IP "127.0.0.1" //Need to update this!
+
+const int PORT = 9000; //Rx
+const int PORTSEND = 9001; //Tx
 
 
 MicroPhysProcessor::MicroPhysProcessor()
@@ -51,11 +61,69 @@ MicroPhysProcessor::MicroPhysProcessor()
 
     //Without a custom editor, generic parameter controls can be added
     //parameters.add(Parameter("thresh", 0.0, 500.0, 200.0, 0));
+
+    //Display channel state all on by default    
+    for(int i=0; i < currentChannelNum; i++)
+    {
+        displayChannels[i] = 1;
+    }
+    
+
+    // UDP Receive setup
+    struct sockaddr_in myaddr;
+
+
+    // Port should accept traffic from any address
+    memset((char *)&myaddr, 0, sizeof(myaddr));
+    myaddr.sin_family = AF_INET;
+    myaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    myaddr.sin_port = htons(PORT);
+
+    sock = socket(AF_INET, SOCK_DGRAM, 0);
+
+    if(sock == -1){
+        perror("Neural UDP could not create a socket");
+        return;
+    }
+
+    if(bind(sock, (struct sockaddr *) &myaddr, sizeof(myaddr)) < 0) {
+        perror("Neural UDP Socket Bind Failure");
+        return;
+    }
+
+    timestamp = 0;
+    // 
+
+    // UDP Send setup
+    struct sockaddr_in si_other;
+    int slen = sizeof(si_other);
+    sockSend = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (sockSend==-1) {
+        perror("socket");
+        return;
+    }
+
+    memset((char *) &si_other, 0, sizeof(si_other));
+    si_other.sin_family = AF_INET;
+    si_other.sin_port = htons(PORTSEND);
+    if (inet_aton(SRV_IP, &si_other.sin_addr)==0) {
+        fprintf(stderr, "inet_aton() failed\n");
+        return;
+    }
+    // unnecessary.. delete in future 
+    if(bind(sockSend, (struct sockaddr *) &si_other, sizeof(si_other)) < 0) {
+        perror("Send UDP Bind Failure");
+        return;
+    }
+    //
+
 }
 
 
 MicroPhysProcessor::~MicroPhysProcessor()
 {
+        close(sock);
+        close(sockSend);
 }
 
 
@@ -97,6 +165,7 @@ void MicroPhysProcessor::process (AudioSampleBuffer& buffer, MidiBuffer& events)
     /**
       Generic structure for processing buffer data
     */
+    sendMetaData();
     int nChannels = buffer.getNumChannels();
     for (int chan = 0; chan < nChannels; ++chan)
     {
@@ -222,21 +291,33 @@ int MicroPhysProcessor::getNumHeadstageOutputs() const
     return currentChannelNum;
 }
 
-void MicroPhysProcessor::setDisplayChannels (const Array<int>& newDisplayChannels)
-{
-    const ScopedLock myScopedLock (objectLock);
-
-    displayChannels = Array<int> (newDisplayChannels);
-    printf("entered2!!!!!!\n");
-}
-
 void MicroPhysProcessor::setDisplayChannelState (int channel, bool newState)
 {
-    if (! newState)
-        displayChannels.removeFirstMatchingValue (channel);
-    else
-        displayChannels.addIfNotAlreadyThere (channel);
+    displayChannels[channel] = newState;    
+    printf("channel: %d, state: %d\n",channel,newState);
+}
 
-    printf("entered!!!!!!\n");
+void MicroPhysProcessor::sendMetaData ()
+{
+    int res;
+    int64 x1 = 0, x2 = 0;
+
+    x1 = int(round( currentSampleRate / 1000));
+    printf("sampling rate: %d\n",int(x1));
+    x1 = x1 << 32;
+
+    for(int i = 0; i < currentChannelNum; i++)
+    {
+        x2 = x2 + (1 << i)*int(displayChannels[i]);
+        printf("channel: %d\n",int(x2)); //don't transmit the 32nd channel weird stuff will happen!
+    }
+
+    int64 dat = x1 + x2;
+    int dat_len = sizeof(dat);
+    res = sendto(sockSend, &dat, dat_len, 0, NULL, 0 );
+    if (res == -1) {
+        perror("sendto");
+        return;
+    }
 
 }
