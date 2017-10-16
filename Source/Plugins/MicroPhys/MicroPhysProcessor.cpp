@@ -39,6 +39,8 @@
 
 const int PORT = 9000; //Rx
 const int PORTSEND = 9001; //Tx
+const int SAMPLES_PER_PACKET = 1;
+const char PACKET_HEADER[] = "blah";
 
 
 MicroPhysProcessor::MicroPhysProcessor()
@@ -91,39 +93,23 @@ MicroPhysProcessor::MicroPhysProcessor()
         return;
     }
 
+    struct timeval tv;
+    tv.tv_sec = 3;
+    tv.tv_usec = 0;
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv,sizeof(tv)) < 0) {
+        perror("timeout");
+    }
+
     timestamp = 0;
     // 
-
-    // UDP Send setup
-    struct sockaddr_in si_other;
-    int slen = sizeof(si_other);
-    sockSend = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (sockSend==-1) {
-        perror("socket");
-        return;
-    }
-
-    memset((char *) &si_other, 0, sizeof(si_other));
-    si_other.sin_family = AF_INET;
-    si_other.sin_port = htons(PORTSEND);
-    if (inet_aton(SRV_IP, &si_other.sin_addr)==0) {
-        fprintf(stderr, "inet_aton() failed\n");
-        return;
-    }
-    // unnecessary.. delete in future 
-    if(bind(sockSend, (struct sockaddr *) &si_other, sizeof(si_other)) < 0) {
-        perror("Send UDP Bind Failure");
-        return;
-    }
-    //
+    
 
 }
 
 
 MicroPhysProcessor::~MicroPhysProcessor()
 {
-        close(sock);
-        close(sockSend);
+        close(sock);        
 }
 
 
@@ -165,7 +151,14 @@ void MicroPhysProcessor::process (AudioSampleBuffer& buffer, MidiBuffer& events)
     /**
       Generic structure for processing buffer data
     */
-    sendMetaData();
+
+    
+    static int DISPLAYCHANNUM = getDisplayChanNum();
+    static int PACKET_HEADER_LENGTH = strlen(PACKET_HEADER);
+    static int PACKET_SIZE = 2*DISPLAYCHANNUM*SAMPLES_PER_PACKET + PACKET_HEADER_LENGTH;
+    char packetBuffer[PACKET_SIZE];
+    int readLength = recvfrom(sock, packetBuffer, (size_t)PACKET_SIZE, 0, NULL, 0);
+
     int nChannels = buffer.getNumChannels();
     for (int chan = 0; chan < nChannels; ++chan)
     {
@@ -299,13 +292,38 @@ void MicroPhysProcessor::setDisplayChannelState (int channel, bool newState)
 
 void MicroPhysProcessor::sendMetaData ()
 {
+    // UDP Send setup
+    struct sockaddr_in si_other;
+    int slen = sizeof(si_other);
+    sockSend = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (sockSend==-1) {
+        perror("socket");
+        return;
+    }
+
+    memset((char *) &si_other, 0, sizeof(si_other));
+    si_other.sin_family = AF_INET;
+    si_other.sin_port = htons(PORTSEND);
+    if (inet_aton(SRV_IP, &si_other.sin_addr)==0) {
+        fprintf(stderr, "inet_aton() failed\n");
+        return;
+    }
+    // unnecessary.. delete in future 
+    if(bind(sockSend, (struct sockaddr *) &si_other, sizeof(si_other)) < 0) {
+        perror("Send UDP Bind Failure");
+        return;
+    }
+    //
+
     int res;
     int64 x1 = 0, x2 = 0;
 
+    //Sample Rate, x1
     x1 = int(round( currentSampleRate / 1000));
     printf("sampling rate: %d\n",int(x1));
     x1 = x1 << 32;
 
+    //Channels to Transmit, x2
     for(int i = 0; i < currentChannelNum; i++)
     {
         x2 = x2 + (1 << i)*int(displayChannels[i]);
@@ -314,10 +332,33 @@ void MicroPhysProcessor::sendMetaData ()
 
     int64 dat = x1 + x2;
     int dat_len = sizeof(dat);
-    res = sendto(sockSend, &dat, dat_len, 0, NULL, 0 );
+    res = sendto(sockSend, &dat, dat_len, 0, (struct sockaddr *) &si_other, slen );
     if (res == -1) {
         perror("sendto");
         return;
     }
 
+    close(sockSend);
+
 }
+
+bool MicroPhysProcessor::enable ()
+{
+    sendMetaData();
+    return true;
+}
+
+int MicroPhysProcessor::getDisplayChanNum()
+{
+    int displayChanNum = 0;
+
+    for(int i=0; i < currentChannelNum; i++)
+    {
+        displayChanNum = displayChanNum + displayChannels[i];
+    }
+
+    return displayChanNum;
+
+}
+
+

@@ -101,11 +101,12 @@ public:
     */
     //void updateSettings();
 
-    //*bool getDisplayChannels() const     { return displayChannels; }
+    bool enable(); 
     void setDisplayChannels (const Array<int>& newDisplayChannels);
     void setDisplayChannelState (int channel, bool newState);
 
     void sendMetaData();
+    int getDisplayChanNum();
 
 private:
 
@@ -123,8 +124,7 @@ private:
     
     float currentSampleRate = 2000;
     int currentChannelNum = CHANNUM;    
-    bool displayChannels[CHANNUM];     
-
+    bool displayChannels[CHANNUM];         
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MicroPhysProcessor);
 };

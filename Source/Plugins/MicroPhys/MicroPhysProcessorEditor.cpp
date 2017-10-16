@@ -98,7 +98,8 @@ void MicroPhysProcessorEditor::buttonEvent (Button* button)
     //    {
     //        getProcessor()->setParameter(0, 0);
     //    }
-    //}  
+    //}    
+    //std::cout<<"Got event from component:"<<button<<std::endl;
 }
 
 
