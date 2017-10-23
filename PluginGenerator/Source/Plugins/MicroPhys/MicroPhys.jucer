@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="VKAO2A" name="MicroPhys" projectType="openephysplug" version="1.0.0"
+              bundleIdentifier="com.yourcompany.MicroPhys" includeBinaryInAppConfig="1"
+              pluginName="MicroPhys" pluginDesc="MicroPhys" pluginManufacturer="yourcompany"
+              pluginManufacturerCode="Manu" pluginCode="Vkao" openEphysPluginType="1"
+              openEphysPluginProcessorType="2" openEphysFileSourcePluginSupportedExtensions=""
+              openEphysPluginDesiredWidth="180" buildVST="0" buildVST3="0"
+              jucerVersion="4.2.1">
+  <MAINGROUP id="beTUGA" name="MicroPhys">
+    <GROUP id="{917346B9-B922-92A1-C94F-95175123C547}" name="Source">
+      <FILE id="rVeySw" name="OpenEphysLib.cpp" compile="1" resource="0"
+            file="Source/OpenEphysLib.cpp"/>
+      <FILE id="OBZ295" name="MicroPhysProcessor.cpp" compile="1" resource="0"
+            file="Source/MicroPhysProcessor.cpp"/>
+      <FILE id="UMJzmm" name="MicroPhysProcessor.h" compile="0" resource="0"
+            file="Source/MicroPhysProcessor.h"/>
+      <FILE id="oY4gfW" name="MicroPhysProcessorEditor.cpp" compile="1" resource="0"
+            file="Source/MicroPhysProcessorEditor.cpp"/>
+      <FILE id="H6JiKM" name="MicroPhysProcessorEditor.h" compile="0" resource="0"
+            file="Source/MicroPhysProcessorEditor.h"/>
+      <FILE id="CekKfX" name="MicroPhysProcessorContentComponent.cpp" compile="1"
+            resource="0" file="Source/MicroPhysProcessorContentComponent.cpp"/>
+      <FILE id="TFw1BU" name="MicroPhysProcessorContentComponent.h" compile="0"
+            resource="0" file="Source/MicroPhysProcessorContentComponent.h"/>
+    </GROUP>
+  </MAINGROUP>
+  <EXPORTFORMATS>
+    <LINUX_MAKE targetFolder="Builds/LinuxMakefile">
+      <CONFIGURATIONS>
+        <CONFIGURATION name="Debug" libraryPath="/usr/X11R6/lib/" isDebug="1" optimisation="1"
+                       targetName="MicroPhys"/>
+        <CONFIGURATION name="Release" libraryPath="/usr/X11R6/lib/" isDebug="0" optimisation="3"
+                       targetName="MicroPhys"/>
+      </CONFIGURATIONS>
+    </LINUX_MAKE>
+  </EXPORTFORMATS>
+  <MODULES/>
+  <JUCEOPTIONS JUCE_QUICKTIME="disabled"/>
+  <OPENEPHYSPLUGIN>
+    <PARAMETER ID="0" NAME="Sample Rate" TYPE="Numerical" DEFAULT_VALUE="2000"
+               HAS_CUSTOM_BOUNDS="1" DESIRED_BOUNDS="9 38 104 24" POSSIBLE_VALUES="1000,10000"
+               DESCRIPTION="Set sampling rate (Hz)"/>
+    <PARAMETER ID="1" NAME="IP Address P1" TYPE="Numerical" DEFAULT_VALUE="192"
+               HAS_CUSTOM_BOUNDS="1" DESIRED_BOUNDS="8 88 32 24" POSSIBLE_VALUES="0,999"
+               DESCRIPTION="Set the IP Address of your MicroPhys"/>
+    <PARAMETER ID="2" NAME="IP Address P2" TYPE="Numerical" DEFAULT_VALUE="168"
+               HAS_CUSTOM_BOUNDS="1" DESIRED_BOUNDS="48 88 32 24" POSSIBLE_VALUES="0,999"
+               DESCRIPTION=""/>
+    <PARAMETER ID="3" NAME="IP Address P3" TYPE="Numerical" DEFAULT_VALUE="0"
+               HAS_CUSTOM_BOUNDS="1" DESIRED_BOUNDS="88 88 32 24" POSSIBLE_VALUES="0,999"
+               DESCRIPTION=""/>
+    <PARAMETER ID="4" NAME="IP Address P4" TYPE="Numerical" DEFAULT_VALUE="100"
+               HAS_CUSTOM_BOUNDS="1" DESIRED_BOUNDS="128 88 32 24" POSSIBLE_VALUES="0,999"
+               DESCRIPTION=""/>
+  </OPENEPHYSPLUGIN>
+  <LIVE_SETTINGS>
+    <LINUX/>
+  </LIVE_SETTINGS>
+</JUCERPROJECT>
