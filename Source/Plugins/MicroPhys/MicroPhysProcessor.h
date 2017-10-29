@@ -102,11 +102,14 @@ public:
     //void updateSettings();
 
     bool enable(); 
+    bool disable();
     void setDisplayChannels (const Array<int>& newDisplayChannels);
     void setDisplayChannelState (int channel, bool newState);
 
     void sendMetaData();
+    void sendStopMessage();
     int getDisplayChanNum();
+    void updateIpAddr(int index, float num);
 
 private:
 
@@ -120,7 +123,8 @@ private:
     int sock; //UDP Receive
     int sockSend; //UDP Send
     int64 timestamp;
-    CriticalSection objectLock;
+    CriticalSection objectLock;    
+    char ip_addr[16]; //default ip address
     
     float currentSampleRate = 2000;
     int currentChannelNum = CHANNUM;    

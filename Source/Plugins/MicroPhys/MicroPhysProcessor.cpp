@@ -35,16 +35,17 @@
 #include "MicroPhysProcessor.h"
 #include "MicroPhysProcessorEditor.h"
 
-#define SRV_IP "127.0.0.1" //Need to update this!
+//#define SRV_IP "127.0.0.1" //192.168.0.100 or 101
 
-const int PORT = 9000; //Rx
-const int PORTSEND = 9001; //Tx
-const int SAMPLES_PER_PACKET = 1;
-const char PACKET_HEADER[] = "blah";
+const int PORT = 8623; //Rx
+const int PORTSEND = 2950; //Tx
+const int PACKET_SIZE = 1280; //bytes
+const int PACKET_HEADER_LENGTH = 5; //bytes
 
 
 MicroPhysProcessor::MicroPhysProcessor()
     : GenericProcessor ("MicroPhys") //, threshold(200.0), state(true)
+    , ip_addr("192.168.000.100")
 
 {
     setProcessorType (PROCESSOR_TYPE_SOURCE);
@@ -52,11 +53,33 @@ MicroPhysProcessor::MicroPhysProcessor()
     // Open Ephys Plugin Generator will insert generated code for parameters here. Don't edit this section.
     //[OPENEPHYS_PARAMETERS_SECTION_BEGIN]
     // Parameter 0 code
-    auto parameter0 = new Parameter ("Sample Rate", "Sample Rate", 1000, 10000, currentSampleRate, 0);
-    parameter0->setEditorDesiredBounds (0,0,0,0);
+    auto parameter0 = new Parameter ("", "Sample Rate", 1000, 10000, 2000, 0);
+    parameter0->setEditorDesiredBounds (9,8,104,40);
     String parameter0description = "Set sampling rate (Hz)";
     parameter0->setDescription (parameter0description);
     parameters.add (parameter0);
+
+    // Parameter 1 code
+    auto parameter1 = new Parameter ("", "IP Address P1", 1, 999, 192, 1); //change so min. value is 0 and that dafault is not 0
+    parameter1->setEditorDesiredBounds (8,60,32,40);
+    String parameter1description = "Set the IP Address of your MicroPhys";
+    parameter1->setDescription (parameter1description);
+    parameters.add (parameter1);
+
+    // Parameter 2 code
+    auto parameter2 = new Parameter ("", "IP Address P2", 1, 999, 168, 2);
+    parameter2->setEditorDesiredBounds (48,60,32,40);
+    parameters.add (parameter2);
+
+    // Parameter 3 code
+    auto parameter3 = new Parameter ("", "IP Address P3", 0, 999, 0, 3);
+    parameter3->setEditorDesiredBounds (88,60,32,40);
+    parameters.add (parameter3);
+
+    // Parameter 4 code
+    auto parameter4 = new Parameter ("", "IP Address P4", 1, 999, 100, 4);
+    parameter4->setEditorDesiredBounds (128,60,32,40);
+    parameters.add (parameter4);
 
 
     //[OPENEPHYS_PARAMETERS_SECTION_END]
@@ -135,6 +158,8 @@ void MicroPhysProcessor::setParameter (int parameterIndex, float newValue)
     {
         currentSampleRate = newValue;
     }
+    else
+        updateIpAddr(parameterIndex,newValue);
     
 
     //Parameter& p =  parameters.getReference(parameterIndex);
@@ -152,17 +177,42 @@ void MicroPhysProcessor::process (AudioSampleBuffer& buffer, MidiBuffer& events)
       Generic structure for processing buffer data
     */
 
-    
-    static int DISPLAYCHANNUM = getDisplayChanNum();
-    static int PACKET_HEADER_LENGTH = strlen(PACKET_HEADER);
-    static int PACKET_SIZE = 2*DISPLAYCHANNUM*SAMPLES_PER_PACKET + PACKET_HEADER_LENGTH;
+        
     char packetBuffer[PACKET_SIZE];
+    int idx = 0;
+    float tmp;
     int readLength = recvfrom(sock, packetBuffer, (size_t)PACKET_SIZE, 0, NULL, 0);
 
-    int nChannels = buffer.getNumChannels();
-    for (int chan = 0; chan < nChannels; ++chan)
+    if (PACKET_SIZE != readLength)
     {
-        int nSamples = getNumSamples (chan);
+        printf("packet read length incorrect: %d\n",readLength);
+        return;
+    }
+
+    //process packet header
+    //add later...
+    idx = idx + 5;
+
+    int nChannels = buffer.getNumChannels();
+    int displayChanNum = getDisplayChanNum();
+    int nSamples = (PACKET_SIZE - PACKET_HEADER_LENGTH)/(2*displayChanNum);
+    //printf("Neural UDP (NC: %d NS: %d) \n ", buffer.getNumChannels(), buffer.getNumSamples());
+    for (int i = 0; i < nSamples; ++i) //sample loop
+    {
+        for (int chan = 0; i < nChannels; ++chan)
+        {
+            float* samplePtr = buffer.getWritePointer(chan,i);
+            
+            if (displayChannels[chan])
+            {
+                tmp = ((int(packetBuffer[idx+1]) << 8) + int(packetBuffer[idx]) - 32768)*0.195;
+                idx = idx + 2;
+                *samplePtr = tmp;
+            }
+            else
+                *samplePtr = 0;
+
+        }
         /* =============================================================================
           Do something here.
 
@@ -280,14 +330,13 @@ float MicroPhysProcessor::getDefaultSampleRate() const
 }
 
 int MicroPhysProcessor::getNumHeadstageOutputs() const
-{
+{    
     return currentChannelNum;
 }
 
 void MicroPhysProcessor::setDisplayChannelState (int channel, bool newState)
 {
-    displayChannels[channel] = newState;    
-    printf("channel: %d, state: %d\n",channel,newState);
+    displayChannels[channel] = newState;        
 }
 
 void MicroPhysProcessor::sendMetaData ()
@@ -300,11 +349,11 @@ void MicroPhysProcessor::sendMetaData ()
         perror("socket");
         return;
     }
-
+    
     memset((char *) &si_other, 0, sizeof(si_other));
     si_other.sin_family = AF_INET;
     si_other.sin_port = htons(PORTSEND);
-    if (inet_aton(SRV_IP, &si_other.sin_addr)==0) {
+    if (inet_aton(ip_addr, &si_other.sin_addr)==0) {
         fprintf(stderr, "inet_aton() failed\n");
         return;
     }
@@ -348,6 +397,12 @@ bool MicroPhysProcessor::enable ()
     return true;
 }
 
+bool MicroPhysProcessor::disable ()
+{
+    sendStopMessage();
+    return true;
+}
+
 int MicroPhysProcessor::getDisplayChanNum()
 {
     int displayChanNum = 0;
@@ -361,4 +416,51 @@ int MicroPhysProcessor::getDisplayChanNum()
 
 }
 
+void MicroPhysProcessor::sendStopMessage()
+{
+    // UDP Send setup
+    struct sockaddr_in si_other;
+    int slen = sizeof(si_other);
+    sockSend = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (sockSend==-1) {
+        perror("socket");
+        return;
+    }
+
+    memset((char *) &si_other, 0, sizeof(si_other));
+    si_other.sin_family = AF_INET;
+    si_other.sin_port = htons(PORTSEND);
+    if (inet_aton(ip_addr, &si_other.sin_addr)==0) {
+        fprintf(stderr, "inet_aton() failed\n");
+        return;
+    }    
+
+    int res;
+    int64 dat = 0;
+    
+    for(int i = 0; i < 64; i++)
+    {
+        dat = dat + (1 << i);        
+    }
+    
+    int dat_len = sizeof(dat);
+    res = sendto(sockSend, &dat, dat_len, 0, (struct sockaddr *) &si_other, slen );
+    if (res == -1) {
+        perror("sendto");
+        return;
+    }
+
+    close(sockSend);
+}
+
+void MicroPhysProcessor::updateIpAddr(int index, float num)
+{
+    int offset = (index-1)*4;
+    char str[4];
+
+    sprintf(str,"%03d",int(num));
+    for (int i = 0; i < 3; i++)
+        ip_addr[offset+i] = str[i];
+    //printf("%s\n",ip_addr);
+}
 
