@@ -181,13 +181,15 @@ void MicroPhysProcessor::process (AudioSampleBuffer& buffer, MidiBuffer& events)
     char packetBuffer[PACKET_SIZE];
     int idx = 0;
     float tmp;
+    
     int readLength = recvfrom(sock, packetBuffer, (size_t)PACKET_SIZE, 0, NULL, 0);
 
     if (PACKET_SIZE != readLength)
     {
         printf("packet read length incorrect: %d\n",readLength);
         return;
-    }
+    }    
+
 
     //process packet header
     //add later...
@@ -197,20 +199,28 @@ void MicroPhysProcessor::process (AudioSampleBuffer& buffer, MidiBuffer& events)
     int displayChanNum = getDisplayChanNum();
     int nSamples = (PACKET_SIZE - PACKET_HEADER_LENGTH)/(2*displayChanNum);
     //printf("Neural UDP (NC: %d NS: %d) \n ", buffer.getNumChannels(), buffer.getNumSamples());
+    
+     tmp = ((int(packetBuffer[idx+1]) << 8) + int(packetBuffer[idx]) - 32768)*0.195;
+     printf("measurement: %f\n ",tmp);
+
     for (int i = 0; i < nSamples; ++i) //sample loop
     {
         for (int chan = 0; i < nChannels; ++chan)
         {
-            float* samplePtr = buffer.getWritePointer(chan,i);
+            //float* samplePtr = buffer.getWritePointer(chan,i);
             
+            /*
             if (displayChannels[chan])
             {
                 tmp = ((int(packetBuffer[idx+1]) << 8) + int(packetBuffer[idx]) - 32768)*0.195;
+                printf("measurement: %f\n ",tmp);
                 idx = idx + 2;
-                *samplePtr = tmp;
+                //*samplePtr = tmp;
             }
             else
-                *samplePtr = 0;
+                tmp = 1; // to prevent compiler error...               
+                //*samplePtr = 0;
+            */
 
         }
         /* =============================================================================
@@ -357,12 +367,14 @@ void MicroPhysProcessor::sendMetaData ()
         fprintf(stderr, "inet_aton() failed\n");
         return;
     }
+    /*
     // unnecessary.. delete in future 
     if(bind(sockSend, (struct sockaddr *) &si_other, sizeof(si_other)) < 0) {
         perror("Send UDP Bind Failure");
         return;
     }
     //
+    */
 
     int res;
     int64 x1 = 0, x2 = 0;
@@ -379,14 +391,16 @@ void MicroPhysProcessor::sendMetaData ()
         printf("channel: %d\n",int(x2)); //don't transmit the 32nd channel weird stuff will happen!
     }
 
-    int64 dat = x1 + x2;
+    int64 dat = x1 + x2;    
+    dat = 0b11111111; // testing purposes
+    printf("sending init packet\n");
     int dat_len = sizeof(dat);
     res = sendto(sockSend, &dat, dat_len, 0, (struct sockaddr *) &si_other, slen );
     if (res == -1) {
         perror("sendto");
         return;
     }
-
+    printf("after sending init packet\n");
     close(sockSend);
 
 }
@@ -436,12 +450,14 @@ void MicroPhysProcessor::sendStopMessage()
     }    
 
     int res;
-    int64 dat = 0;
+    int64 dat = 0b00011000;
     
+    /*
     for(int i = 0; i < 64; i++)
     {
         dat = dat + (1 << i);        
     }
+    */
     
     int dat_len = sizeof(dat);
     res = sendto(sockSend, &dat, dat_len, 0, (struct sockaddr *) &si_other, slen );
@@ -449,7 +465,7 @@ void MicroPhysProcessor::sendStopMessage()
         perror("sendto");
         return;
     }
-
+    printf("send stop message\n");
     close(sockSend);
 }
 
