@@ -23,6 +23,8 @@
 
 
 #include <stdio.h>
+#include <assert.h>
+#include <string.h>
 #include "c_api.h" 
 
 #include "TfProcessor.h"
@@ -34,7 +36,7 @@
 
 TfProcessor::TfProcessor()
     : GenericProcessor ("TF") //, threshold(200.0), state(true)
-    , file("tensorflow_inception_graph.pb")
+    , file("zeke.pb")
     
 
 {
@@ -88,7 +90,9 @@ void TfProcessor::process (AudioSampleBuffer& buffer, MidiBuffer& events)
 {
     /**
       Generic structure for processing buffer data
-    */
+    */    
+
+
     int nChannels = buffer.getNumChannels();
     for (int chan = 0; chan < nChannels; ++chan)
     {
@@ -116,8 +120,30 @@ void TfProcessor::process (AudioSampleBuffer& buffer, MidiBuffer& events)
          =============================================================================== */
     }
 
-    float data[] = {1.2, 1.3, 1.4};
-    inference(data,graph);
+    /*
+    printf("gets to before TF_SessionRun\n");
+    printf("inputs.size(): %d\n",inputs.size());
+    printf("input_values.size(): %d\n",input_values.size());
+    printf("outputs.size(): %d\n",outputs.size());
+    printf("output_values.size(): %d\n",output_values.size());
+    */
+
+    TF_SessionRun(session, NULL,
+                &inputs[0], &input_values[0], inputs.size(),
+                &outputs[0], &output_values[0], outputs.size(),
+                NULL, 0, NULL, status);
+       
+    
+    assert(TF_GetCode(status) == TF_OK);  
+    printf("gets past TF_SessionRun\n"); 
+    
+     
+    float* out_vals = static_cast<float*>(TF_TensorData(output_values[0]));
+    for (int i = 0; i < 3; ++i)
+    {
+        std::cout << "Output values info: " << *out_vals++ << "\n";
+    }
+
 
     /** Simple example that creates an event when the first channel goes under a negative threshold
 
@@ -206,10 +232,17 @@ bool TfProcessor::enable()
 {
     printf("entered here\n");
     int res = readGraph();
-    if (res)
+    int res2 = initTFVars();
+
+    if (res + res2)
         return false;
     else
         return true;    
+}
+
+bool TfProcessor::disable()
+{            
+    return true;
 }
 
 int TfProcessor::readGraph()
@@ -221,7 +254,7 @@ int TfProcessor::readGraph()
     printf("entered here2\n");        
 
       // Import graph_def into graph                                                          
-    TF_Status* status = TF_NewStatus();                                                     
+    status = TF_NewStatus();                                                     
     TF_ImportGraphDefOptions* opts = TF_NewImportGraphDefOptions();                         
     printf("entered here3\n"); 
     TF_GraphImportGraphDef(graph, graph_def, opts, status); //seg fault
@@ -232,8 +265,7 @@ int TfProcessor::readGraph()
       fprintf(stderr, "ERROR: Unable to import graph %s", TF_Message(status));        
       return 1;
   }       
-    fprintf(stdout, "Successfully imported graph");                                         
-    TF_DeleteStatus(status);
+    fprintf(stdout, "Successfully imported graph");                                             
     TF_DeleteBuffer(graph_def);                                                                 
     return 0;
 }
@@ -245,12 +277,20 @@ void free_buffer(void* data, size_t length) {
 TF_Buffer* TfProcessor::readFile(char* fileName)
 {
     //char fileName[] = "tensorflow_inception_graph.pb";
-    FILE *f = fopen(fileName, "rb");
-    fseek(f, 0, SEEK_END);
-    long fsize = ftell(f);                                                                  
-    fseek(f, 0, SEEK_SET);  //same as rewind(f);                                            
+    printf("%s",fileName);
+    FILE *f = fopen("zeke.pb", "rb");
+    if (f == NULL)
+        printf("file pointer is null\n");
 
+    printf("gets past fopen\n");
+    fseek(f, 0, SEEK_END);
+    printf("gets past fseek\n");
+    long fsize = ftell(f);      
+    printf("gets past ftell\n");                                                            
+    fseek(f, 0, SEEK_SET);  //same as rewind(f);                                            
+    printf("gets past fseek2\n");
     void* data = malloc(fsize);                                                             
+
     int readLength = fread(data, fsize, 1, f);
     printf("readLength: %d\n",readLength);
     fclose(f);
@@ -258,14 +298,122 @@ TF_Buffer* TfProcessor::readFile(char* fileName)
     TF_Buffer* buf = TF_NewBuffer();                                                        
     buf->data = data;
     buf->length = fsize;                                                                    
-    buf->data_deallocator = free_buffer; 
+    buf->data_deallocator = free_buffer;     
     return buf;
 }
 
+static void Deallocator(void* data, size_t length, void* arg) {
+        free(data);
+        // *reinterpret_cast<bool*>(arg) = true;
+}
 
-
-void TfProcessor::inference(float* data,TF_Graph* tf_graph)
+int TfProcessor::initTFVars()
 {
 
-    target[0] = 5.1; //dummy code for now
+  // Create variables to store the size of the input and output variables
+  const int num_bytes_in = 32 * 10 * sizeof(float);
+  const int num_bytes_out = 1 * sizeof(float);
+
+  // Set input dimensions - this should match the dimensionality of the input in
+  // the loaded graph
+  int64_t in_dims[] = {1, 10, 32};
+  int64_t out_dims[] = {1, 1};
+
+  // ######################
+  // Set up graph inputs
+  // ######################
+
+  // Create a variable containing your values
+  float values[10][32];
+  for (int i=0; i < 10; i++)
+  {
+    for (int j=0; j < 32; j++)
+    {
+      values[i][j] = 0;
+    }
+  }
+
+  // Create vectors to store graph input operations and input tensors
+  //std::vector<TF_Output> inputs;
+  //std::vector<TF_Tensor*> input_values;
+  /*std::vector<std::string> input_names;
+  input_names.push_back("x_input");
+  input_names.push_back("y_input");
+  input_names.push_back("z_input");*/
+
+  // Pass the graph and a string name of your input operation
+  // (make sure the operation name is correct)
+  //TF_Operation* input_op;
+  //TF_Output input_opout;
+
+  TF_Operation* input_op = TF_GraphOperationByName(graph, "x_input");
+  TF_Output input_opout = {input_op, 0};
+  inputs.push_back(input_opout);
+
+  TF_Operation* input_op1 = TF_GraphOperationByName(graph, "y_input");
+  TF_Output input_opout1 = {input_op1, 0};
+  inputs.push_back(input_opout1);
+
+  TF_Operation* input_op2 = TF_GraphOperationByName(graph, "z_input");
+  TF_Output input_opout2 = {input_op2, 0};
+  inputs.push_back(input_opout2);
+
+  // Create the input tensor using the dimension (in_dims) and size (num_bytes_in)
+  // variables created earlier
+  TF_Tensor* input = TF_NewTensor(TF_FLOAT, in_dims, 3, values, num_bytes_in, &Deallocator, 0);
+  input_values.push_back(input);
+
+  TF_Tensor* input1 = TF_NewTensor(TF_FLOAT, in_dims, 3, values, num_bytes_in, &Deallocator, 0);
+  input_values.push_back(input1);
+
+  TF_Tensor* input2 = TF_NewTensor(TF_FLOAT, in_dims, 3, values, num_bytes_in, &Deallocator, 0);
+  input_values.push_back(input2);
+
+  // Optionally, you can check that your input_op and input tensors are correct
+  // by using some of the functions provided by the C API.
+  std::cout << "Input op info: " << TF_OperationName(input_op1) << "\n";
+  std::cout << "Input data info: " << TF_NumDims(input1) << "\n";
+
+  // ######################
+  // Set up graph outputs (similar to setting up graph inputs)
+  // ######################
+
+  // Create vector to store graph output operations
+  //std::vector<TF_Output> outputs;
+  TF_Operation* output_op = TF_GraphOperationByName(graph, "par_out_0");
+  TF_Output output_opout = {output_op, 0};
+  outputs.push_back(output_opout);
+
+  TF_Operation* output_op1 = TF_GraphOperationByName(graph, "par_out_1");
+  TF_Output output_opout1 = {output_op1, 0};
+  outputs.push_back(output_opout1);
+
+  TF_Operation* output_op2 = TF_GraphOperationByName(graph, "par_out_2");
+  TF_Output output_opout2 = {output_op2, 0};
+  outputs.push_back(output_opout2);
+
+  // Create TF_Tensor* vector
+  //std::vector<TF_Tensor*> output_values(outputs.size(), NULL);
+
+  // Similar to creating the input tensor, however here we don't yet have the
+  // output values, so we use TF_AllocateTensor()
+  TF_Tensor* output_value = TF_AllocateTensor(TF_FLOAT, out_dims, 2, num_bytes_out);  
+  output_values.push_back(output_value);
+
+  // As with inputs, check the values for the output operation and output tensor
+  std::cout << "Output: " << TF_OperationName(output_op1) << "\n";
+  std::cout << "Output info: " << TF_NumDims(output_value) << "\n";
+
+  // ######################
+  // Run graph
+  // ######################
+  fprintf(stdout, "Running session...\n");
+  
+  TF_SessionOptions* sess_opts = TF_NewSessionOptions();  
+  session = TF_NewSession(graph, sess_opts, status);  
+  assert(TF_GetCode(status) == TF_OK); 
+  
+  printf("gets to the end of TfProcessor\n");
+  return 0; 
+
 }

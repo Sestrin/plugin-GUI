@@ -82,10 +82,12 @@ public:
     /** Load custom settings from XML*/
     virtual void loadCustomParametersFromXml() override;
 
-    bool enable();    
+    bool enable();  
+    bool disable();  
     int readGraph();
+    int initTFVars();
     TF_Buffer* readFile(char* fileName);
-    void inference(float* data, TF_Graph* tf_graph);
+    
     
     float target[];        
 
@@ -108,7 +110,16 @@ private:
     // bool state;
 
     char file[200];
+
     TF_Graph* graph;
+    TF_Session* session;
+    TF_Status* status = TF_NewStatus();
+    std::vector<TF_Output> inputs;
+    std::vector<TF_Tensor*> input_values;
+    std::vector<TF_Output> outputs;
+    std::vector<TF_Tensor*> output_values;
+    //std::vector<TF_Tensor*> output_values(3, NULL); //hard-coded for now...
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TfProcessor);
 };
 
