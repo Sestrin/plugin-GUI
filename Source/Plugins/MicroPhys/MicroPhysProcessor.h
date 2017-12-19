@@ -119,7 +119,6 @@ private:
     //
     // float threshold;
     // bool state;
-
     int sock; //UDP Receive
     int sockSend; //UDP Send
     int64 timestamp;

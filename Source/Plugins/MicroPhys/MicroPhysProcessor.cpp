@@ -200,8 +200,10 @@ void MicroPhysProcessor::process (AudioSampleBuffer& buffer, MidiBuffer& events)
     int nSamples = (PACKET_SIZE - PACKET_HEADER_LENGTH)/(2*displayChanNum);
     //printf("Neural UDP (NC: %d NS: %d) \n ", buffer.getNumChannels(), buffer.getNumSamples());
     
-     tmp = ((int(packetBuffer[idx+1]) << 8) + int(packetBuffer[idx]) - 32768)*0.195;
-     printf("measurement: %f\n ",tmp);
+    tmp = ((int(packetBuffer[idx+1]) << 8) + int(packetBuffer[idx]) - 32768)*0.195;
+    //printf("measurement: %f\n ",tmp);
+    buffer.setSample(1, 0, tmp/100);
+    printf(" %f \n", buffer.getSample(1, 0)); 
 
     for (int i = 0; i < nSamples; ++i) //sample loop
     {
@@ -245,6 +247,10 @@ void MicroPhysProcessor::process (AudioSampleBuffer& buffer, MidiBuffer& events)
          addEvents(events, TTL, n);
          =============================================================================== */
     }
+
+    timestamp++;
+    setTimestamp(events, timestamp);
+    setNumSamples(events, 1);    
 
     /** Simple example that creates an event when the first channel goes under a negative threshold
 
