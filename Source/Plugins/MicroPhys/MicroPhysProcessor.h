@@ -110,6 +110,7 @@ public:
     void sendStopMessage();
     int getDisplayChanNum();
     void updateIpAddr(int index, float num);
+    unsigned long char2Long(char* charNum);
 
 private:
 

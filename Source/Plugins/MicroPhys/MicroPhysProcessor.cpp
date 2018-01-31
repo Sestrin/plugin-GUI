@@ -39,8 +39,9 @@
 
 const int PORT = 8623; //Rx
 const int PORTSEND = 2950; //Tx
-const int PACKET_SIZE = 1280; //bytes
-const int PACKET_HEADER_LENGTH = 5; //bytes
+//const in PACKETS_PER_PROCESS = 10;
+const int PACKET_HEADER_LENGTH = 9; //bytes
+const int PACKET_SIZE = 1280+PACKET_HEADER_LENGTH; //bytes 1280
 
 
 MicroPhysProcessor::MicroPhysProcessor()
@@ -180,8 +181,9 @@ void MicroPhysProcessor::process (AudioSampleBuffer& buffer, MidiBuffer& events)
         
     char packetBuffer[PACKET_SIZE];
     int idx = 0;
-    float tmp;
-    
+    uint16_t tmp;
+    float data;
+
     int readLength = recvfrom(sock, packetBuffer, (size_t)PACKET_SIZE, 0, NULL, 0);
 
     if (PACKET_SIZE != readLength)
@@ -193,22 +195,46 @@ void MicroPhysProcessor::process (AudioSampleBuffer& buffer, MidiBuffer& events)
 
     //process packet header
     //add later...
-    idx = idx + 5;
+    idx = idx + PACKET_HEADER_LENGTH;
+    unsigned long packet_id = char2Long(&packetBuffer[1]);
 
-    int nChannels = buffer.getNumChannels();
+    /*
+    for (int i = 1; i < 5; i++)
+    {
+        packet_id = packet_id + (unsigned long)packetBuffer[i] << 8*(i-1);
+    }
+    */
+
+    printf("packet_id: %lu",packet_id);
+
+    int nChannels = 32;//buffer.getNumChannels();
     int displayChanNum = getDisplayChanNum();
-    int nSamples = (PACKET_SIZE - PACKET_HEADER_LENGTH)/(2*displayChanNum);
+    
+    //int nSamples = (PACKET_SIZE - PACKET_HEADER_LENGTH)/(2*displayChanNum);
+    int nSamples = (PACKET_SIZE - PACKET_HEADER_LENGTH)/(2*32);
+    //printf("nSamples: %d",nSamples);
     //printf("Neural UDP (NC: %d NS: %d) \n ", buffer.getNumChannels(), buffer.getNumSamples());
     
-    tmp = ((int(packetBuffer[idx+1]) << 8) + int(packetBuffer[idx]) - 32768)*0.195;
+    //tmp = ((int(packetBuffer[idx+1]) << 8) + int(packetBuffer[idx]));
+    //data = ((float)tmp - 32768)*0.195;
+    
     //printf("measurement: %f\n ",tmp);
-    buffer.setSample(1, 0, tmp/100);
-    printf(" %f \n", buffer.getSample(1, 0)); 
+    //buffer.setSample(1, 0, data);
+    //printf(" %f \n", buffer.getSample(1, 0)); 
 
     for (int i = 0; i < nSamples; ++i) //sample loop
     {
-        for (int chan = 0; i < nChannels; ++chan)
+        for (int chan = 0; chan < nChannels; ++chan)
         {
+            
+            tmp = ((int(packetBuffer[idx+1]) << 8) + int(packetBuffer[idx]));
+            data = ((float)tmp - 32768)*0.195;            
+            
+            buffer.setSample(chan, i, data);
+            //printf("chan: %d; sample: %d; data: %f \n",chan, i, buffer.getSample(chan, i)); 
+
+            idx = idx + 2;
+            //printf("idx: %d\n",idx);
             //float* samplePtr = buffer.getWritePointer(chan,i);
             
             /*
@@ -248,7 +274,7 @@ void MicroPhysProcessor::process (AudioSampleBuffer& buffer, MidiBuffer& events)
          =============================================================================== */
     }
 
-    timestamp++;
+    timestamp = timestamp + nSamples;
     setTimestamp(events, timestamp);
     setNumSamples(events, 1);    
 
@@ -271,6 +297,25 @@ void MicroPhysProcessor::process (AudioSampleBuffer& buffer, MidiBuffer& events)
 
     }
     */
+}
+
+unsigned long MicroPhysProcessor::char2Long(char* charNum)
+{
+    //Reverse order of bytes in str
+    int j = sizeof(unsigned long) - 1;
+    for (int i = 0; i < j; ++i)
+    {
+        char temp = charNum[i];
+        charNum[i] = charNum[j];
+        charNum[j] = temp;
+        --j;
+    }
+    unsigned long longNum = (unsigned long)((unsigned char)(charNum[0]) << 24 | //bit shifts 4 chars into a 4 byte long
+                                            (unsigned char)(charNum[1]) << 16 |
+                                            (unsigned char)(charNum[2]) << 8 |
+                                            (unsigned char)(charNum[3]));
+
+    return longNum;
 }
 
 
@@ -398,7 +443,7 @@ void MicroPhysProcessor::sendMetaData ()
     }
 
     int64 dat = x1 + x2;    
-    dat = 0b11111111; // testing purposes
+    dat = 0b1111111111111111; // testing purposes... needs to be 9 bits
     printf("sending init packet\n");
     int dat_len = sizeof(dat);
     res = sendto(sockSend, &dat, dat_len, 0, (struct sockaddr *) &si_other, slen );
@@ -456,7 +501,8 @@ void MicroPhysProcessor::sendStopMessage()
     }    
 
     int res;
-    int64 dat = 0b00011000;
+    //int64 dat = 0b00011000;
+    uint16_t dat = 0b0000000000000000;
     
     /*
     for(int i = 0; i < 64; i++)
