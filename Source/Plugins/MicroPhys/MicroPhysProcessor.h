@@ -126,7 +126,9 @@ private:
     CriticalSection objectLock;    
     char ip_addr[16]; //default ip address
     
-    float currentSampleRate = 2000;
+    unsigned long last_packet_id = 0;
+
+    float currentSampleRate = 1000;
     int currentChannelNum = CHANNUM;    
     bool displayChannels[CHANNUM];         
 

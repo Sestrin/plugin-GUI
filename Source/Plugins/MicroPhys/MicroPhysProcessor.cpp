@@ -31,6 +31,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include "MicroPhysProcessor.h"
 #include "MicroPhysProcessorEditor.h"
@@ -39,7 +40,7 @@
 
 const int PORT = 8623; //Rx
 const int PORTSEND = 2950; //Tx
-//const in PACKETS_PER_PROCESS = 10;
+const int PACKETS_PER_PROCESS = 1;
 const int PACKET_HEADER_LENGTH = 9; //bytes
 const int PACKET_SIZE = 1280+PACKET_HEADER_LENGTH; //bytes 1280
 
@@ -180,100 +181,105 @@ void MicroPhysProcessor::process (AudioSampleBuffer& buffer, MidiBuffer& events)
 
         
     char packetBuffer[PACKET_SIZE];
-    int idx = 0;
+    int idx = 0, readLength, nSamples;
     uint16_t tmp;
     float data;
-
-    int readLength = recvfrom(sock, packetBuffer, (size_t)PACKET_SIZE, 0, NULL, 0);
-
-    if (PACKET_SIZE != readLength)
-    {
-        printf("packet read length incorrect: %d\n",readLength);
-        return;
-    }    
-
-
-    //process packet header
-    //add later...
-    idx = idx + PACKET_HEADER_LENGTH;
-    unsigned long packet_id = char2Long(&packetBuffer[1]);
-
-    /*
-    for (int i = 1; i < 5; i++)
-    {
-        packet_id = packet_id + (unsigned long)packetBuffer[i] << 8*(i-1);
-    }
-    */
-
-    printf("packet_id: %lu",packet_id);
-
-    int nChannels = 32;//buffer.getNumChannels();
+    unsigned long packet_id;
+    int nChannels = buffer.getNumChannels();
     int displayChanNum = getDisplayChanNum();
-    
-    //int nSamples = (PACKET_SIZE - PACKET_HEADER_LENGTH)/(2*displayChanNum);
-    int nSamples = (PACKET_SIZE - PACKET_HEADER_LENGTH)/(2*32);
-    //printf("nSamples: %d",nSamples);
-    //printf("Neural UDP (NC: %d NS: %d) \n ", buffer.getNumChannels(), buffer.getNumSamples());
-    
-    //tmp = ((int(packetBuffer[idx+1]) << 8) + int(packetBuffer[idx]));
-    //data = ((float)tmp - 32768)*0.195;
-    
-    //printf("measurement: %f\n ",tmp);
-    //buffer.setSample(1, 0, data);
-    //printf(" %f \n", buffer.getSample(1, 0)); 
 
-    for (int i = 0; i < nSamples; ++i) //sample loop
+    for (int z = 0; z < PACKETS_PER_PROCESS; z++)
     {
-        for (int chan = 0; chan < nChannels; ++chan)
+
+        readLength = recvfrom(sock, packetBuffer, (size_t)PACKET_SIZE, 0, NULL, 0);
+
+        if (PACKET_SIZE != readLength)
         {
-            
-            tmp = ((int(packetBuffer[idx+1]) << 8) + int(packetBuffer[idx]));
-            data = ((float)tmp - 32768)*0.195;            
-            
-            buffer.setSample(chan, i, data);
-            //printf("chan: %d; sample: %d; data: %f \n",chan, i, buffer.getSample(chan, i)); 
+            printf("packet read length incorrect: %d\n",readLength);
+            return;
+        }    
 
-            idx = idx + 2;
-            //printf("idx: %d\n",idx);
-            //float* samplePtr = buffer.getWritePointer(chan,i);
-            
-            /*
-            if (displayChannels[chan])
+
+        //process packet header
+        //add later...
+        idx = idx + PACKET_HEADER_LENGTH;
+        char packet_tmp[4];
+        strncpy(packet_tmp, &packetBuffer[1],4);
+        packet_id = char2Long(packet_tmp);
+        //printf("packet_id: %d\n",packet_id);
+        
+        struct timeval tp;
+        gettimeofday(&tp, NULL);
+        long int ms = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+        printf("%d\n",ms);       
+        
+        nSamples = (PACKET_SIZE - PACKET_HEADER_LENGTH)/(2*displayChanNum);    
+        //printf("nSamples: %d",nSamples);
+        //printf("Neural UDP (NC: %d NS: %d) \n ", buffer.getNumChannels(), buffer.getNumSamples());
+        
+        //tmp = ((int(packetBuffer[idx+1]) << 8) + int(packetBuffer[idx]));
+        //data = ((float)tmp - 32768)*0.195;
+        
+        //printf("measurement: %f\n ",tmp);
+        //buffer.setSample(1, 0, data);
+        //printf(" %f \n", buffer.getSample(1, 0)); 
+
+        for (int i = 0; i < nSamples; ++i) //sample loop
+        {
+            for (int chan = 0; chan < nChannels; ++chan)
             {
-                tmp = ((int(packetBuffer[idx+1]) << 8) + int(packetBuffer[idx]) - 32768)*0.195;
-                printf("measurement: %f\n ",tmp);
+                
+                tmp = ((int(packetBuffer[idx+1]) << 8) + int(packetBuffer[idx]));
+                data = ((float)tmp - 32768)*0.195;            
+                
+                buffer.setSample(chan, i+z*nSamples, data);
+                //printf("chan: %d; sample: %d; data: %f \n",chan, i, buffer.getSample(chan, i)); 
+
                 idx = idx + 2;
-                //*samplePtr = tmp;
+                //printf("idx: %d\n",idx);
+                //float* samplePtr = buffer.getWritePointer(chan,i);
+                
+                /*
+                if (displayChannels[chan])
+                {
+                    tmp = ((int(packetBuffer[idx+1]) << 8) + int(packetBuffer[idx]) - 32768)*0.195;
+                    printf("measurement: %f\n ",tmp);
+                    idx = idx + 2;
+                    //*samplePtr = tmp;
+                }
+                else
+                    tmp = 1; // to prevent compiler error...               
+                    //*samplePtr = 0;
+                */
+
             }
-            else
-                tmp = 1; // to prevent compiler error...               
-                //*samplePtr = 0;
-            */
+            /* =============================================================================
+              Do something here.
 
+              To obtain a read-only pointer to the n sample of a channel:
+              float* samplePtr = buffer.getReadPointer(chan,n);
+
+              To obtain a read-write pointer to the n sample of a channel:
+              float* samplePtr = buffer.getWritePointer(chan,n);
+
+              All the samples in a channel are consecutive, so this example is valid:
+              float* samplePtr = buffer.getWritePointer(chan,0);
+              for (i=0; i < nSamples; i++)
+              {
+             *(samplePtr+i) = (*samplePtr+i)+offset;
+             }
+
+             See also documentation and examples for buffer.copyFrom and buffer.addFrom to operate on entire channels at once.
+
+             To add a TTL event generated on the n-th sample:
+             addEvents(events, TTL, n);
+             =============================================================================== */
         }
-        /* =============================================================================
-          Do something here.
 
-          To obtain a read-only pointer to the n sample of a channel:
-          float* samplePtr = buffer.getReadPointer(chan,n);
-
-          To obtain a read-write pointer to the n sample of a channel:
-          float* samplePtr = buffer.getWritePointer(chan,n);
-
-          All the samples in a channel are consecutive, so this example is valid:
-          float* samplePtr = buffer.getWritePointer(chan,0);
-          for (i=0; i < nSamples; i++)
-          {
-         *(samplePtr+i) = (*samplePtr+i)+offset;
-         }
-
-         See also documentation and examples for buffer.copyFrom and buffer.addFrom to operate on entire channels at once.
-
-         To add a TTL event generated on the n-th sample:
-         addEvents(events, TTL, n);
-         =============================================================================== */
     }
 
+    //printf("delta: %lu\n",packet_id - last_packet_id);
+    last_packet_id = packet_id;
     timestamp = timestamp + nSamples;
     setTimestamp(events, timestamp);
     setNumSamples(events, 1);    
@@ -302,6 +308,7 @@ void MicroPhysProcessor::process (AudioSampleBuffer& buffer, MidiBuffer& events)
 unsigned long MicroPhysProcessor::char2Long(char* charNum)
 {
     //Reverse order of bytes in str
+    
     int j = sizeof(unsigned long) - 1;
     for (int i = 0; i < j; ++i)
     {
@@ -310,6 +317,7 @@ unsigned long MicroPhysProcessor::char2Long(char* charNum)
         charNum[j] = temp;
         --j;
     }
+    
     unsigned long longNum = (unsigned long)((unsigned char)(charNum[0]) << 24 | //bit shifts 4 chars into a 4 byte long
                                             (unsigned char)(charNum[1]) << 16 |
                                             (unsigned char)(charNum[2]) << 8 |
